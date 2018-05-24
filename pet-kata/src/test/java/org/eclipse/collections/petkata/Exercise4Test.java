@@ -10,21 +10,20 @@
 
 package org.eclipse.collections.petkata;
 
-import java.util.AbstractMap;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.IntSummaryStatistics;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
+import org.eclipse.collections.api.bag.Bag;
 import org.eclipse.collections.api.list.MutableList;
-import org.eclipse.collections.impl.factory.Sets;
+import org.eclipse.collections.api.list.primitive.MutableIntList;
+import org.eclipse.collections.api.set.primitive.IntSet;
+import org.eclipse.collections.api.tuple.primitive.ObjectIntPair;
+import org.eclipse.collections.impl.factory.primitive.IntSets;
 import org.eclipse.collections.impl.list.mutable.FastList;
 import org.eclipse.collections.impl.test.Verify;
+import org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * In this set of tests, wherever you see .stream() replace it with an Eclipse Collections alternative.
@@ -42,26 +41,44 @@ public class Exercise4Test extends PetDomainForKata
                 .map(pet -> pet.getAge())
                 .collect(Collectors.toCollection(FastList::new));
 
+        MutableIntList petAgesEC = this.people.flatCollect(Person::getPets).collectInt(Pet::getAge);
+
         // Try to use an IntSet here instead
         Set<Integer> uniqueAges = petAges.toSet();
+        IntSet uniqueAgesEC = petAgesEC.toSet();
+
         // IntSummaryStatistics is a class in JDK 8 - Try and use it with MutableIntList.forEach()
         IntSummaryStatistics stats = petAges.stream().mapToInt(i -> i).summaryStatistics();
+        IntSummaryStatistics statsEC = petAgesEC.summaryStatistics();
+
         // Is a Set<Integer> equal to an IntSet?
         // Hint: Try IntSets instead of Sets as the factory
-        Assert.assertEquals(Sets.mutable.with(1, 2, 3, 4), uniqueAges);
+        Assert.assertEquals(IntSets.mutable.with(1, 2, 3, 4), uniqueAgesEC);
         // Try to leverage min, max, sum, average from the Eclipse Collections primitive api
         Assert.assertEquals(stats.getMin(), petAges.stream().mapToInt(i -> i).min().getAsInt());
         Assert.assertEquals(stats.getMax(), petAges.stream().mapToInt(i -> i).max().getAsInt());
         Assert.assertEquals(stats.getSum(), petAges.stream().mapToInt(i -> i).sum());
         Assert.assertEquals(stats.getAverage(), petAges.stream().mapToInt(i -> i).average().getAsDouble(), 0.0);
         Assert.assertEquals(stats.getCount(), petAges.size());
+
+        //Eclipse Collections
+        Assert.assertEquals(statsEC.getMin(), petAgesEC.min());
+        Assert.assertEquals(statsEC.getMax(), petAgesEC.max());
+        Assert.assertEquals(statsEC.getSum(), petAgesEC.sum());
+        Assert.assertEquals(statsEC.getAverage(), petAgesEC.average(), 0.0);
+        Assert.assertEquals(statsEC.getCount(), petAgesEC.size());
+
         // Hint: Match = Satisfy
         Assert.assertTrue(petAges.stream().allMatch(i -> i > 0));
         Assert.assertFalse(petAges.stream().anyMatch(i -> i == 0));
         Assert.assertTrue(petAges.stream().noneMatch(i -> i < 0));
 
-        // Don't forget to comment this out or delete it when you are done
-        Assert.fail("Refactor to Eclipse Collections");
+
+        // Hint: Match = Satisfy
+        Assert.assertTrue(petAgesEC.allSatisfy(i -> i > 0));
+        Assert.assertFalse(petAgesEC.anySatisfy(i -> i == 0));
+        Assert.assertTrue(petAgesEC.noneSatisfy(i -> i < 0));
+
     }
 
     @Test
@@ -73,16 +90,17 @@ public class Exercise4Test extends PetDomainForKata
                         .filter(each -> each.named("Bob Smith"))
                         .findFirst().get();
 
+        Person personEC = this.people.detectWith(Person::named, "Bob Smith");
+
         //get Bob Smith's pets' names
         String names =
                 person.getPets().stream()
                         .map(Pet::getName)
                         .collect(Collectors.joining(" & "));
 
-        Assert.assertEquals("Dolly & Spot", names);
+        String namesEC = personEC.getPets().collect(pet -> pet.getName()).makeString(" & ");
 
-        // Don't forget to comment this out or delete it when you are done
-        Assert.fail("Refactor to Eclipse Collections");
+        Assert.assertEquals("Dolly & Spot", namesEC);
     }
 
     @Test
@@ -95,15 +113,15 @@ public class Exercise4Test extends PetDomainForKata
                                 .flatMap(person -> person.getPets().stream())
                                 .collect(Collectors.groupingBy(Pet::getType,
                                         Collectors.counting())));
-        Assert.assertEquals(Long.valueOf(2L), countsStream.get(PetType.CAT));
-        Assert.assertEquals(Long.valueOf(2L), countsStream.get(PetType.DOG));
-        Assert.assertEquals(Long.valueOf(2L), countsStream.get(PetType.HAMSTER));
-        Assert.assertEquals(Long.valueOf(1L), countsStream.get(PetType.SNAKE));
-        Assert.assertEquals(Long.valueOf(1L), countsStream.get(PetType.TURTLE));
-        Assert.assertEquals(Long.valueOf(1L), countsStream.get(PetType.BIRD));
 
-        // Don't forget to comment this out or delete it when you are done
-        Assert.fail("Refactor to Eclipse Collections");
+        Bag<PetType> countsBagEC = this.people.flatCollect(person -> person.getPetTypes()).toBag();
+        Assert.assertEquals(2, countsBagEC.occurrencesOf(PetType.CAT));
+        Assert.assertEquals(2, countsBagEC.occurrencesOf(PetType.DOG));
+        Assert.assertEquals(2, countsBagEC.occurrencesOf(PetType.HAMSTER));
+        Assert.assertEquals(1, countsBagEC.occurrencesOf(PetType.SNAKE));
+        Assert.assertEquals(1, countsBagEC.occurrencesOf(PetType.TURTLE));
+        Assert.assertEquals(1, countsBagEC.occurrencesOf(PetType.BIRD));
+
     }
 
     /**
@@ -123,12 +141,15 @@ public class Exercise4Test extends PetDomainForKata
                         .sorted(Comparator.comparingLong(e -> -e.getValue()))
                         .limit(3)
                         .collect(Collectors.toList());
-        Verify.assertSize(3, favoritesStream);
-        Verify.assertContains(new AbstractMap.SimpleEntry<>(PetType.CAT, Long.valueOf(2)), favoritesStream);
-        Verify.assertContains(new AbstractMap.SimpleEntry<>(PetType.DOG, Long.valueOf(2)), favoritesStream);
-        Verify.assertContains(new AbstractMap.SimpleEntry<>(PetType.HAMSTER, Long.valueOf(2)), favoritesStream);
 
-        // Don't forget to comment this out or delete it when you are done
-        Assert.fail("Refactor to Eclipse Collections");
+        MutableList<ObjectIntPair<PetType>> favoritesStreamEC = this.people.asLazy()
+                .flatCollect(person -> person.getPetTypes()).toBag()
+                .topOccurrences(3);
+
+        Verify.assertSize(3, favoritesStreamEC);
+        Verify.assertContains(PrimitiveTuples.pair(PetType.CAT, 2), favoritesStreamEC);
+        Verify.assertContains(PrimitiveTuples.pair(PetType.DOG, 2), favoritesStreamEC);
+        Verify.assertContains(PrimitiveTuples.pair(PetType.HAMSTER, 2), favoritesStreamEC);
+
     }
 }
